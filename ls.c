@@ -141,7 +141,11 @@ int main (int argc, char *argv[]) {
     }
 
     char **entries = calloc(entry_count, sizeof(*entries));
-
+    if(!entries) {
+        perror("Failed to allocate memory using calloc");
+        return 1;
+    }
+    
     rewinddir(dir);
     size_t i = 0;
     while((entry = readdir(dir)) != NULL && i < entry_count) {
@@ -159,6 +163,10 @@ int main (int argc, char *argv[]) {
             printf("%s\n", entries[i]);
         }
     }
+
+    for(i = 0; i < entry_count; i++) {
+        free(entries[i]);
+    } 
     
     free(entries);
     closedir(dir);
