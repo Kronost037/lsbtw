@@ -1,5 +1,8 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <dirent.h>
+#include <string.h>
+#include <ctype.h>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <pwd.h>
@@ -59,8 +62,44 @@ void print_long(const char *dir, const char *name) {
         timebuf,
         name
     );
-
 }
+
+int compare_string(const void *a, const void *b) {
+    const char *str_a = *(const char **)a;
+    const char *str_b = *(const  char **)b;
+
+    const unsigned char *str1 = (const unsigned char*) str_a;
+    const unsigned char *str2 = (const unsigned char*) str_b;
+    
+    // Skip Punctuation for sorting
+    char first;
+    char second;
+    while ((first = *str1) && (second = *str2)) {
+        if (ispunct(first) || isspace(first)) {
+            str1++;
+            continue;
+        }
+
+        if (ispunct(second) || isspace(second)) {
+            str2++;
+            continue;
+        }
+
+        if (tolower(first) != tolower(second)) {
+            return tolower(first) - tolower(second);
+        }
+
+        str1++;
+        str2++;
+    }
+
+    while ((first = *str1) && (ispunct(first) || isspace(first))) str1++;
+    while ((second = *str2) && (ispunct(second) || isspace(second))) str2++;
+
+    int dif =  tolower(first) - tolower(second);
+    return dif ? dif : strcmp(str_a, str_b);
+}
+
 
 int show_all = 0;
 int long_format = 0;
@@ -82,6 +121,11 @@ int main (int argc, char *argv[]) {
         }
     }
 
+    if(argc - optind > 1) {
+        fprintf(stderr, "usage: %s [-al] [path]\n", argv[0]);
+        return 1;
+    }
+
     const char *path = (optind < argc) ? argv[optind] : ".";
 
     DIR *dir = opendir(path);
@@ -91,16 +135,32 @@ int main (int argc, char *argv[]) {
     }
 
     struct dirent *entry;
+    size_t entry_count = 0;
     while((entry = readdir(dir)) != NULL) { 
-        if (!show_all && entry->d_name[0] == '.') continue;
-        if(long_format) {
-            print_long(path, entry->d_name);
-        }
-        else {
-            printf("%s\n", entry->d_name);
-        }
+        entry_count++;
     }
 
+    char **entries = calloc(entry_count, sizeof(*entries));
+
+    rewinddir(dir);
+    size_t i = 0;
+    while((entry = readdir(dir)) != NULL && i < entry_count) {
+        entries[i++] = strdup(entry->d_name);
+    }
+
+    qsort(entries, entry_count, sizeof (char *), compare_string);
+       
+    for(i = 0; i < entry_count; i++) {
+        if (!show_all && entries[i][0] == '.') continue;
+        if(long_format) {
+            print_long(path, entries[i]);
+        }
+        else {
+            printf("%s\n", entries[i]);
+        }
+    }
+    
+    free(entries);
     closedir(dir);
     return 0;
 }
