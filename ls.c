@@ -72,8 +72,8 @@ int compare_string(const void *a, const void *b) {
     const unsigned char *str2 = (const unsigned char*) str_b;
     
     // Skip Punctuation for sorting
-    char first;
-    char second;
+    unsigned char first;
+    unsigned char second;
     while ((first = *str1) && (second = *str2)) {
         if (ispunct(first) || isspace(first)) {
             str1++;
@@ -149,7 +149,14 @@ int main (int argc, char *argv[]) {
     rewinddir(dir);
     size_t i = 0;
     while((entry = readdir(dir)) != NULL && i < entry_count) {
-        entries[i++] = strdup(entry->d_name);
+        entries[i] = strdup(entry->d_name);
+       
+        if (!entries[i]) {
+            perror("Failed to allocate memory using calloc");
+            return 1;    
+        }
+        
+        i++;
     }
 
     qsort(entries, entry_count, sizeof (char *), compare_string);
